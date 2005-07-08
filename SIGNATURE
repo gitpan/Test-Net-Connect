@@ -1,0 +1,33 @@
+This file contains message digests of all files listed in MANIFEST,
+signed via the Module::Signature module, version 0.44.
+
+To verify the content in this distribution, first make sure you have
+Module::Signature installed, then type:
+
+    % cpansign -v
+
+It will check each file's integrity, as well as the signature's
+validity.  If "==> Signature verified OK! <==" is not displayed,
+the distribution may already have been compromised, and you should
+not run its Makefile.PL or Build.PL.
+
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+SHA1 9297546f73ca3f316df6d8129f5681704f27c44f Build.PL
+SHA1 8476a3b87192347327c325893564faaf3e60c4da Changes
+SHA1 c59038b1b03db21da022cead92c6f3b9c623aef6 MANIFEST
+SHA1 5db0e6a4339f90c357616e584d2d8c2df9649fb1 META.yml
+SHA1 7da0823f4eb128b5940860356520f15ce0240327 README
+SHA1 698b69d8b0a52a39932cbc9ac28d371346a54aa2 lib/Test/Net/Connect.pm
+SHA1 7a037a7ff93ce14b06568c51b0e1167c67be2949 t/00-load.t
+SHA1 dd9414d4f469e821664e96f1b98f85ed26a8a45c t/01-connect_ok.t
+SHA1 6da39b48ce64b584e4c3274bff96fc76ff484820 t/pod-coverage.t
+SHA1 0190346d7072d458c8a10a45c19f86db641dcc48 t/pod.t
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.1 (FreeBSD)
+
+iD8DBQFCzjq/k6gHZCw343URAjRMAKCS1k9Cz6flKQx9oZu2Np1ITGpVgACgiL8K
+xi5SOCGwzVL6YsNZiWNv89M=
+=6Amg
+-----END PGP SIGNATURE-----
