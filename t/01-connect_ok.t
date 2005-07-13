@@ -107,8 +107,7 @@ check_test(sub { connect_ok({ host => 'localhost', port => 25, foo => 'bar'} ); 
 $v = $bad_parms;
 
 check_test(sub { connect_ok($v, "Connect with a bad host"); },
-	   { ok => 0, name => "Connect with a bad host",
-	     diag => "    Connection to $v->{proto}://$v->{host}:$v->{port} failed: Can't assign requested address" },
+	   { ok => 0, name => "Connect with a bad host", },
 	   "Connecting to a non-existent host");
 
 

@@ -2,7 +2,7 @@ NAME
     Test::Net::Connect - Test::Builder based tests for network connectivity
 
 VERSION
-    Version 0.01
+    Version 0.02
 
 SYNOPSIS
         use Test::Net::Connect tests => 2;

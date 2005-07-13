@@ -9,7 +9,6 @@ my $builder = Module::Build->new(
     dist_version_from   => 'lib/Test/Net/Connect.pm',
     requires => {
 		 'Test::More' => 0,
-		 'Net::DNS' => 0,
 		 'IO::Socket::INET' => 0,
     },
     add_to_cleanup      => [ 'Test-Net-Connect-*' ],

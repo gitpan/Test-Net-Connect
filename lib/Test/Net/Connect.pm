@@ -35,7 +35,8 @@ our @EXPORT = qw(connect_ok);
 
 my $Test = Test::Builder->new;
 
-use Net::DNS;
+use Net::hostent;
+use Socket;
 use IO::Socket::INET;
 
 my @FIELDS = qw(host port proto);
@@ -57,11 +58,11 @@ Test::Net::Connect - Test::Builder based tests for network connectivity
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 SYNOPSIS
 
@@ -185,24 +186,13 @@ sub connect_ok {
   if($spec->{host} =~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/) {
     push @addresses, $spec->{host};
   } else {
-    my $res = Net::DNS::Resolver->new;
-    my $query = $res->search($spec->{host});
+    my $h = gethostbyname($spec->{host});
 
-    if($query) {
-      foreach my $rr ($query->answer) {
-	next unless $rr->type eq 'A';
-	push @addresses, $rr->address;
-      }
+    if($h) {
+      push @addresses, map { inet_ntoa($_) } @{$h->addr_list()};
     } else {
       my $ok = $Test->ok(0, $test_name);
       $Test->diag("    DNS lookup for '$spec->{host}' failed");
-      $Test->diag('   ', $res->errorstring);
-      return $ok;
-    }
-
-    if(scalar @addresses == 0) {
-      my $ok = $Test->ok(0, $test_name);
-      $Test->diag("    DNS lookup for '$spec->{host}' returned no IP addresses");
       return $ok;
     }
   }
