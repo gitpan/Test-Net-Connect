@@ -1,6 +1,6 @@
 ---
 name: Test-Net-Connect
-version: 0.02
+version: 0.03
 author:
   - Nik Clayton <nik@FreeBSD.org>
 abstract: Test::Builder based tests for network connectivity
@@ -11,5 +11,5 @@ requires:
 provides:
   Test::Net::Connect:
     file: lib/Test/Net/Connect.pm
-    version: 0.02
+    version: 0.03
 generated_by: Module::Build version 0.2611

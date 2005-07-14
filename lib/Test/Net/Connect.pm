@@ -31,7 +31,7 @@ use Test::Builder;
 
 require Exporter;
 our @ISA = qw(Exporter);
-our @EXPORT = qw(connect_ok);
+our @EXPORT = qw(connect_ok connect_not_ok);
 
 my $Test = Test::Builder->new;
 
@@ -49,7 +49,7 @@ sub import {
   $Test->exported_to($pack);
   $Test->plan(@_);
 
-  $self->export_to_level(1, $self, qw(connect_ok));
+  $self->export_to_level(1, $self, qw(connect_ok connect_not_ok));
 }
 
 =head1 NAME
@@ -58,15 +58,15 @@ Test::Net::Connect - Test::Builder based tests for network connectivity
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 SYNOPSIS
 
-    use Test::Net::Connect tests => 2;
+    use Test::Net::Connect tests => 3;
 
     connect_ok({ host => 'smtp.example.com', port => 25,
                  proto => 'tcp' }, 'Check tcp://smtp.example.com:25');
@@ -75,9 +75,13 @@ our $VERSION = '0.02';
     # port can be appended to the host name
     connect_ok({ host => 'smtp.example.com:25' });
 
-Test::Net::Connect B<automatically> exports C<connect_ok()> to make it
-easier to test whether or not a network connection can be made from
-this host to a port on another host using TCP or UDP.
+    connect_not_ok({ host => 'localhost:23' },
+                   'Telnet connections should not be accepted locally');
+
+Test::Net::Connect B<automatically> exports C<connect_ok()> and
+C<connect_not_ok()> to make it easier to test whether or not a network
+connection can be made from this host to a port on another host using
+TCP or UDP.
 
 Test::Net::Connect uses Test::Builder, so plays nicely with Test::Simple,
 Test::More, and other Test::Builder based modules.
@@ -86,8 +90,8 @@ Test::More, and other Test::Builder based modules.
 
 =head2 connect_ok($spec, [ $test_name ]);
 
-connect_ok() tests that a connection can be made that matches a given
-specification.
+connect_ok() tests that a connection to a host, given in C<$spec>, can
+be made.
 
 The specification is a hashref that contains one or more keys.  Valid
 keys are C<host>, C<port>, and C<proto>.  Each value associated with
@@ -126,25 +130,110 @@ is generated following the form
 
 sub connect_ok {
   my($spec, $test_name) = @_;
+  return unless _check_spec($spec, $test_name);
+
+  $test_name = _gen_default_test_name($spec) unless defined $test_name;
+
+  return unless _dns_lookup($spec, $test_name);
+
+  my @diag = ();
+
+  foreach my $address (@{$spec->{_addresses}}) {
+    my $sock = IO::Socket::INET->new(PeerAddr => $address,
+				     PeerPort => $spec->{port},
+				     Proto    => $spec->{proto},
+				     Timeout  => 5,
+				     Type     => SOCK_STREAM);
+
+    if(! defined $sock) {
+      push @diag, "    Connection to $spec->{proto}://$address:$spec->{port} failed: $!";
+    } else {
+      close $sock;
+    }
+  }
+
+  delete $spec->{_addresses};
+
+  if(@diag) {
+    my $ok = $Test->ok(0, $test_name);
+    $Test->diag(@diag);
+    return $ok;
+  }
+
+  return $Test->ok(1, $test_name);
+}
+
+=head2 connect_not_ok($spec, [ $test_name ]);
+
+connect_not_ok() tests that a connection to a host, given in $spec, can
+not be made.
+
+The arguments are handled in the same manner as for connect_ok().
+
+B<NOTE:> connect_not_ok() will fail (C<not ok>) if the given host is not
+in the DNS.
+DNS.
+
+=cut
+
+sub connect_not_ok {
+  my($spec, $test_name) = @_;
+  return unless _check_spec($spec, $test_name);
+
+  $test_name = _gen_default_test_name($spec) unless defined $test_name;
+
+  return unless _dns_lookup($spec, $test_name);
+
+  my @diag = ();
+
+  foreach my $address (@{$spec->{_addresses}}) {
+    my $sock = IO::Socket::INET->new(PeerAddr => $address,
+				     PeerPort => $spec->{port},
+				     Proto    => $spec->{proto},
+				     Timeout  => 5,
+				     Type     => SOCK_STREAM);
+
+    if(defined $sock) {
+      push @diag, "    Connection to $spec->{proto}://$address:$spec->{port} succeeded";
+      close($sock);
+    }
+  }
+
+  delete $spec->{_addresses};
+
+  if(@diag) {
+    my $ok = $Test->ok(0, $test_name);
+    $Test->diag(@diag);
+    return $ok;
+  }
+
+  return $Test->ok(1, $test_name);
+}
+
+sub _check_spec {
+  my($spec, $test_name) = @_;
+  my $sub = (caller(1))[3];
+
+  $sub =~ s/Test::Net::Connect:://;
 
   if(! defined $spec) {
-    my $ok = $Test->ok(0, 'connect_ok()');
-    $Test->diag('    connect_ok() called with no arguments');
+    my $ok = $Test->ok(0, "$sub()");
+    $Test->diag("    $sub() called with no arguments");
     return $ok;
   }
 
   if(ref($spec) ne 'HASH') {
-    $test_name ||= 'connect_ok()';
+    $test_name = defined $test_name ? $test_name : "$sub()";
     my $ok = $Test->ok(0, $test_name);
-    $Test->diag('    First argument to connect_ok() must be a hash ref');
+    $Test->diag("    First argument to $sub() must be a hash ref");
     return $ok;
   }
 
   if(! exists $spec->{host} or ! defined $spec->{host}
      or $spec->{host} =~ /^\s*$/) {
-    $test_name ||= 'connect_ok()';
+    $test_name = defined $test_name ? $test_name : "$sub()";
     my $ok = $Test->ok(0, $test_name);
-    $Test->diag('    connect_ok() called with no hostname');
+    $Test->diag("    $sub() called with no hostname");
     return $ok;
   }
 
@@ -155,9 +244,9 @@ sub connect_ok {
   }
 
   if(! defined $spec->{port} or $spec->{port} =~ /^\s*$/) {
-    $test_name ||= 'connect_ok()';
+    $test_name = defined $test_name ? $test_name : "$sub()";
     my $ok = $Test->ok(0, $test_name);
-    $Test->diag('    connect_ok() called with no port');
+    $Test->diag("    $sub() called with no port");
     return $ok;
   }
 
@@ -179,17 +268,23 @@ sub connect_ok {
     return $ok;
   }
 
-  my @addresses = ();
+  return 1;
+}
+
+sub _dns_lookup {
+  my($spec, $test_name) = @_;
+
+  $spec->{_addresses} = [];
 
   # If we've been handed a single IP address use that.  Otherwise,
   # look up all the IP addresses for the host
   if($spec->{host} =~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/) {
-    push @addresses, $spec->{host};
+    push @{$spec->{_addresses}}, $spec->{host};
   } else {
     my $h = gethostbyname($spec->{host});
 
     if($h) {
-      push @addresses, map { inet_ntoa($_) } @{$h->addr_list()};
+      push @{$spec->{_addresses}}, map { inet_ntoa($_) } @{$h->addr_list()};
     } else {
       my $ok = $Test->ok(0, $test_name);
       $Test->diag("    DNS lookup for '$spec->{host}' failed");
@@ -197,27 +292,13 @@ sub connect_ok {
     }
   }
 
-  foreach my $address (@addresses) {
-    my $sock = IO::Socket::INET->new(PeerAddr => $address,
-				     PeerPort => $spec->{port},
-				     Proto    => $spec->{proto},
-				     Timeout  => 5,
-				     Type     => SOCK_STREAM);
+  return 1;
+}
 
-    if(! defined $sock) {
-      push @diag, "    Connection to $spec->{proto}://$address:$spec->{port} failed: $!";
-    } else {
-      close $sock;
-    }
-  }
+sub _gen_default_test_name {
+  my $spec = shift;
 
-  if(@diag) {
-    my $ok = $Test->ok(0, $test_name);
-    $Test->diag(@diag);
-    return $ok;
-  }
-
-  return $Test->ok(1, $test_name);
+  return "Connecting to $spec->{proto}://$spec->{host}:$spec->{port}";
 }
 
 =head1 EXAMPLES
@@ -235,6 +316,10 @@ Do the same thing, but shorter.
 Verify that the local SSH daemon is responding.
 
     connect_ok({ host => '127.0.0.1:22' });
+
+Verify that the host www.example.com is not running a server on port 80.
+
+    connect_not_ok({ host => 'www.example.com:80' });
 
 =head1 SEE ALSO
 

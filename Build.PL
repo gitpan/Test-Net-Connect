@@ -18,24 +18,55 @@ my $builder = Module::Build->new(
 
 print <<EOM;
 
-The automated tests need to be configured with host/port information
-for a host that you expect to be able to connect to, and host/port
-information for a host that you do not expect to be able to connect
-to.
-
-This is so that the tests can verify that the module is working
-correctly.
+The automated tests need to be configured with host:port information
+for a connection that you expect to work, and host:port information for
+a connection that you expect to fail.
 
 EOM
 
 my %config = ();
 
-$builder->config_data(good_host => $builder->prompt('Please enter a hostname or IP address that you expect to be able
-to connect to:', 'localhost'));
+my $host_port;
+my($host, $port);
 
-$builder->config_data(good_port => $builder->prompt('Please enter a port number on that host to connect to:', 22));
+print <<EOM;
+First, a host:port that you expect to connect to.  The default specifies
+the SSH port on the localhost.
 
-$builder->config_data(bad_host => $builder->prompt('Please enter a hostname or IP address that do not expect to be able
-to connect to:', '127.0.0.2'));
+EOM
+
+$host_port = $builder->prompt('host:port :', 'localhost:22');
+
+($host, $port) = split(/:/, $host_port, 2);
+
+$builder->config_data(good_host => $host);
+$builder->config_data(good_port => $port);
+
+print <<EOM;
+
+Now, an IP address:port that you expect to connect to.  The default specifies
+the SSH port on 127.0.0.1 (localhost).
+
+EOM
+
+$host_port = $builder->prompt('ip:port :', '127.0.0.1:22');
+
+$builder->config_data(good_ip => $host_port);
+
+print <<EOM;
+
+Finally, a host:port that you do not expect to connect to.  Note that the
+host must exist in order for the tests to work, but it should have nothing
+listening on the specified port.  The default specifies the telnet port on
+the localhost.
+
+EOM
+
+$host_port = $builder->prompt('host:port :', 'localhost:23');
+
+($host, $port) = split(/:/, $host_port, 2);
+
+$builder->config_data(bad_host => $host);
+$builder->config_data(bad_port => $port);
 
 $builder->create_build_script();
